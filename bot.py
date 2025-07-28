@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
+MANAGER_CHAT_ID = int(os.getenv("MANAGER_CHAT_ID"))
 
 LANGUAGE_KEYBOARD = [["🇺🇦 Українська", "🇬🇧 English"]]
 
@@ -14,6 +15,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         MESSAGES["ua"]["start"],
         reply_markup=ReplyKeyboardMarkup(LANGUAGE_KEYBOARD, resize_keyboard=True)
     )
+
+async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    message = (
+        f"📬 Новий запит на зв’язок від користувача:\n"
+        f"Імʼя: {user.full_name}\n"
+        f"Username: @{user.username if user.username else 'немає'}\n"
+        f"ID: {user.id}"
+    )
+    await context.bot.send_message(chat_id=MANAGER_CHAT_ID, text=message)
+    return await update.message.reply_text("Наш менеджер скоро з вами звʼяжеться 🙌")
 
 async def handle_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -42,7 +54,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🪵 Матеріали": "Ми використовуємо термоосику, термоясен, мінеральну вату тощо...",
             "🛠 Додаткові опції": "Доступні опції: панорамне вікно, RGB освітлення, Bluetooth...",
             "✍️ Кастомна sauna": "Напишіть нам свої побажання — зробимо індивідуальний проєкт!",
-            "📞 Зв’язатися з менеджером": "Наш менеджер зв’яжеться з вами найближчим часом.",
+            "📞 Зв’язатися з менеджером": await notify_manager(update, context),
             "🌍 Змінити мову": await start(update, context)
         },
         "en": {
@@ -50,7 +62,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🪵 Materials": "We use thermo-aspen, thermo-ash, mineral wool, etc...",
             "🛠 Extra features": "Available: panoramic window, RGB lighting, Bluetooth audio...",
             "✍️ Custom sauna": "Send us your ideas — we’ll design a custom sauna for you!",
-            "📞 Contact a manager": "Our manager will contact you shortly.",
+            "📞 Contact a manager": await notify_manager(update, context),
             "🌍 Change language": await start(update, context)
         }
     }
