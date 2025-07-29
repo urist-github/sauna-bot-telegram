@@ -67,7 +67,23 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     responses = {
         "ua": {
             "📦 Каталог саун": "Ось наш каталог саун: [PDF / посилання]",
-            "🪵 Матеріали": "Ми використовуємо термоосику, термоясен, мінеральну вату тощо...",
+            "🪵 Матеріали": (
+                "🪵 *Матеріали, які ми використовуємо у наших сауна-бані:*\n\n"
+                "Каркас з сосни 50×100 мм, утеплення — 10 см мінеральної вати.\n\n"
+                "🔹 *Зовні:*\n"
+                "— 2 стіни: металевий клік-фальц\n"
+                "— 2 стіни: дерев’яний планкен або гонт\n\n"
+                "🔹 *Пиріг стіни (зовні → всередину):*\n"
+                "1. Металевий клік-фальц або дерев’яний фасад\n"
+                "2. Монтажна дерев’яна рейка\n"
+                "3. Вітрозахисна мембрана\n"
+                "4. Мінеральна вата 100 мм\n"
+                "5. Фольгований паробар’єр\n"
+                "6. Вагонка з вільхи\n\n"
+                "🔹 *Всередині парної:*\n"
+                "— Лежаки з вільхи\n"
+                "— Панорамне гартоване скло 6 мм"
+            ),
             "🛠 Додаткові опції": "Дивіться всі доступні опції за посиланням:\nhttps://urist-github.github.io/sauna-price/",
             "✍️ Кастомна sauna": "Напишіть нам свої побажання — зробимо індивідуальний проєкт!",
             "📞 Зв’язатися з менеджером": handle_contact_request,
@@ -75,7 +91,23 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         },
         "en": {
             "📦 Sauna catalog": "Here is our sauna catalog: [PDF / link]",
-            "🪵 Materials": "We use thermo-aspen, thermo-ash, mineral wool, etc...",
+            "🪵 Materials": (
+                "🪵 *Materials we use in our outdoor sauna cabins:*\n\n"
+                "The frame is made of pine 50×100 mm with 100 mm mineral wool insulation.\n\n"
+                "🔹 *Exterior cladding:*\n"
+                "— 2 walls: metal click-lock panels\n"
+                "— 2 walls: natural wood planks or shingles\n\n"
+                "🔹 *Wall structure (outside → inside):*\n"
+                "1. Metal click-lock or wooden facade\n"
+                "2. Wooden battens\n"
+                "3. Windproof membrane\n"
+                "4. 100 mm mineral wool\n"
+                "5. Foil vapor barrier\n"
+                "6. Alder paneling\n\n"
+                "🔹 *Inside the steam room:*\n"
+                "— Alder benches\n"
+                "— Tempered glass panel (6 mm)"
+            ),
             "🛠 Extra features": "See all available features here:\nhttps://urist-github.github.io/sauna-price/",
             "✍️ Custom sauna": "Send us your ideas — we’ll design a custom sauna for you!",
             "📞 Contact a manager": handle_contact_request,
