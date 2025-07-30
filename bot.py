@@ -36,6 +36,15 @@ async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_T
     await notify_manager(update, context)
     await update.message.reply_text("Наш менеджер скоро з вами звʼяжеться 🙌")
 
+async def send_catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    with open("catalog.pdf", "rb") as pdf_file:
+        await context.bot.send_document(
+            chat_id=update.effective_chat.id,
+            document=pdf_file,
+            filename="LakeGlow_Sauna_Catalog.pdf",
+            caption="Ось наш актуальний каталог PDF файлом 📄"  # або англійський варіант
+        )
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     lang = context.user_data.get("lang")
@@ -66,7 +75,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Реакція на меню
     responses = {
         "ua": {
-            "📦 Каталог саун": "Ось наш каталог саун: [PDF / посилання]",
+            "📦 Каталог саун": send_catalog,
             "🪵 Матеріали": (
                 "🪵 *Матеріали, які ми використовуємо у наших сауна-бані:*\n\n"
                 "Каркас з сосни 50×100 мм, утеплення — 10 см мінеральної вати.\n\n"
@@ -90,7 +99,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🌍 Змінити мову": start
         },
         "en": {
-            "📦 Sauna catalog": "Here is our sauna catalog: [PDF / link]",
+            "📦 Sauna catalog": send_catalog,
             "🪵 Materials": (
                 "🪵 *Materials we use in our outdoor sauna cabins:*\n\n"
                 "The frame is made of pine 50×100 mm with 100 mm mineral wool insulation.\n\n"
