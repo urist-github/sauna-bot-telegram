@@ -37,12 +37,19 @@ async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text("Наш менеджер скоро з вами звʼяжеться 🙌")
 
 async def send_catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = context.user_data.get("lang", "ua")
+
+    caption = {
+        "ua": "Ось наш актуальний каталог PDF файлом 📄",
+        "en": "Here is our latest sauna catalog as a PDF 📄"
+    }.get(lang, "Catalog 📄")
+
     with open("catalog.pdf", "rb") as pdf_file:
         await context.bot.send_document(
             chat_id=update.effective_chat.id,
             document=pdf_file,
             filename="LakeGlow_Sauna_Catalog.pdf",
-            caption="Ось наш актуальний каталог PDF файлом 📄"  # або англійський варіант
+            caption=caption
         )
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
