@@ -1,5 +1,4 @@
 import os
-import html
 from itertools import zip_longest
 
 from telegram import Update, ReplyKeyboardMarkup
@@ -25,37 +24,39 @@ def group_menu(items, n=2):
 # --- спільні утиліти ---------------------------------------------------------
 async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE, extra_text: str = ""):
     """
-    Повідомлення менеджеру у твоєму старому форматі:
-    - ті самі заголовки/рядки
-    - клікабельний лінк "Відкрити чат з користувачем"
+    Старий формат повідомлення менеджеру (Markdown) + клікабельний лінк.
     """
     user = update.effective_user
-    full_name = html.escape(user.full_name or "")
+    # У Markdown символи _*[]() можуть ламати розмітку — трохи екрануємо
+    def esc(s: str) -> str:
+        return s.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[") \
+                .replace("`", "\\`").replace("(", "\\(").replace(")", "\\)")
+
+    full_name = esc(user.full_name or "")
     username_display = f"@{user.username}" if user.username else "—"
     user_id = user.id
 
-    # Лінк для контакту з користувачем
+    base = (
+        f"📬 Новий запит від користувача\n"
+        f"• Name: {full_name}\n"
+        f"• Username: {esc(username_display)}\n"
+        f"• User ID: {user_id}\n"
+    )
+    if extra_text:
+        base += f"\n📝 Повідомлення:\n{esc(extra_text)}"
+
+    # Посилання на чат з користувачем
     if user.username:
         contact_link = f"https://t.me/{user.username}"
     else:
         contact_link = f"tg://user?id={user.id}"
 
-    # Той самий текст, але безпечний завдяки HTML
-    base = (
-        "📬 Новий запит від користувача<br>"
-        f"• Name: {full_name}<br>"
-        f"• Username: <code>{html.escape(username_display)}</code><br>"
-        f"• User ID: <code>{user_id}</code>"
-    )
-    if extra_text:
-        base += f"<br><br>📝 Повідомлення:<br>{html.escape(extra_text)}"
-
-    base += f'<br><br>👉 <a href="{html.escape(contact_link)}">Відкрити чат з користувачем</a>'
+    base += f"\n\n👉 [Відкрити чат з користувачем]({contact_link})"
 
     await context.bot.send_message(
         chat_id=MANAGER_CHAT_ID,
         text=base,
-        parse_mode="HTML",
+        parse_mode="Markdown",
         disable_web_page_preview=True
     )
 
@@ -70,9 +71,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Повідомляємо менеджера, як раніше
     await notify_manager(update, context, extra_text="🔔 Кнопка: Зв’язатися з менеджером")
-    # Користувачу — просте підтвердження
     await update.message.reply_text("Наш менеджер скоро з вами звʼяжеться 🙌")
 
 # --- КАСТОМНА САУНА ----------------------------------------------------------
@@ -171,7 +170,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Реакція на меню — як було раніше
+    # Реакція на меню
     responses = {
         "ua": {
             "📦 Каталог саун": send_catalog,
