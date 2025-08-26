@@ -4,6 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 from messages import MESSAGES
 from dotenv import load_dotenv
 from itertools import zip_longest
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
@@ -26,29 +27,36 @@ def group_menu(items, n=2):
 
 # --- спільні утиліти ---------------------------------------------------------
 async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE, extra_text: str = ""):
-    """Шле службове повідомлення менеджеру про користувача + довільний текст запиту."""
+    """Шле службове повідомлення менеджеру про користувача + довільний текст запиту (HTML safe)."""
     user = update.effective_user
-    base = (
-        f"📬 Новий запит від користувача\n"
-        f"• Name: {user.full_name}\n"
-        f"• Username: @{user.username if user.username else '—'}\n"
-        f"• User ID: {user.id}\n"
-    )
-    if extra_text:
-        base += f"\n📝 Повідомлення:\n{extra_text}"
+    full_name = html.escape(user.full_name or "")
+    username = user.username or "—"
+    user_id = user.id
 
-    # Формуємо клікабельний лінк
+    # посилання для контакту
     if user.username:
         contact_link = f"https://t.me/{user.username}"
+        contact_caption = "Відкрити чат з користувачем"
     else:
         contact_link = f"tg://user?id={user.id}"
+        contact_caption = "Відкрити чат (по ID)"
 
-    base += f"\n\n👉 [Відкрити чат з користувачем]({contact_link})"
+    base = (
+        f"📬 Новий запит від користувача<br>"
+        f"• Name: {full_name}<br>"
+        f"• Username: <code>@{html.escape(username)}</code><br>"
+        f"• User ID: <code>{user_id}</code>"
+    )
+
+    if extra_text:
+        base += f"<br><br>📝 Повідомлення:<br>{html.escape(extra_text)}"
+
+    base += f'<br><br>👉 <a href="{html.escape(contact_link)}">{contact_caption}</a>'
 
     await context.bot.send_message(
         chat_id=MANAGER_CHAT_ID,
         text=base,
-        parse_mode="Markdown",
+        parse_mode="HTML",
         disable_web_page_preview=True
     )
 
