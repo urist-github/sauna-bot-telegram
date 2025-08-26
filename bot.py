@@ -73,6 +73,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 1) Повідомляємо менеджера як і раніше
+    await notify_manager(update, context, extra_text="🔔 Кнопка: Зв’язатися з менеджером")
+
+    # 2) Даємо користувачу кнопки для прямого контакту
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✉️ Написати менеджеру", url="https://t.me/ONERGROUP11")],
+        [InlineKeyboardButton("🔗 Відкрити чат по ID", url="tg://user?id=7893403688")]
+    ])
+    await update.message.reply_text(
+        "Наш менеджер скоро з вами звʼяжеться 🙌\nАбо можете написати напряму:",
+        reply_markup=kb,
+        disable_web_page_preview=True
+    )
+
+async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await notify_manager(update, context, extra_text="🔔 Кнопка: Зв’язатися з менеджером")
     await send_reply(update, "Наш менеджер скоро з вами звʼяжеться 🙌")
 
