@@ -18,7 +18,8 @@ def group_menu(items, n=2):
     return [list(filter(None, group)) for group in zip_longest(*args)]
 
 # --- спільні утиліти ---------------------------------------------------------
-async def notify_manager((update: Update, context: ContextTypes.DEFAULT_TYPE, extra_text: str = ""):
+async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE, extra_text: str = ""):
+    """Шле службове повідомлення менеджеру про користувача + довільний текст запиту."""
     user = update.effective_user
     base = (
         f"📬 Новий запит від користувача\n"
@@ -29,11 +30,10 @@ async def notify_manager((update: Update, context: ContextTypes.DEFAULT_TYPE, ex
     if extra_text:
         base += f"\n📝 Повідомлення:\n{extra_text}"
 
-    # Якщо є username → можна клікнути
+    # Формуємо клікабельний лінк
     if user.username:
         contact_link = f"https://t.me/{user.username}"
     else:
-        # якщо нема username → deep link по ID (відкриється чат у клієнта Telegram)
         contact_link = f"tg://user?id={user.id}"
 
     base += f"\n\n👉 [Відкрити чат з користувачем]({contact_link})"
