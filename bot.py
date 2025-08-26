@@ -12,6 +12,13 @@ MANAGER_CHAT_ID = int(os.getenv("MANAGER_CHAT_ID"))
 LANGUAGE_KEYBOARD = [["🇺🇦 Українська", "🇬🇧 English"]]
 CANCEL_WORDS = {"/cancel", "Скасувати", "Cancel", "❌ Скасувати", "❌ Cancel"}
 
+# --- утиліти відповіді -------------------------------------------------------
+DEFAULT_REPLY_KW = dict(disable_web_page_preview=True)
+
+async def send_reply(update: Update, text: str, **kw):
+    kw = {**DEFAULT_REPLY_KW, **kw}
+    return await update.message.reply_text(text, **kw)
+
 # Групування списку по 2 кнопки в ряд
 def group_menu(items, n=2):
     args = [iter(items)] * n
@@ -45,9 +52,20 @@ async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE, ext
         disable_web_page_preview=True
     )
 
+# --- старт/меню --------------------------------------------------------------
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # скидаємо можливі незавершені стани
+    context.user_data.pop("awaiting_custom", None)
+
+    await send_reply(
+        update,
+        MESSAGES["ua"]["start"],
+        reply_markup=ReplyKeyboardMarkup(LANGUAGE_KEYBOARD, resize_keyboard=True)
+    )
+
 async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await notify_manager(update, context, extra_text="🔔 Кнопка: Зв’язатися з менеджером")
-    await update.message.reply_text("Наш менеджер скоро з вами звʼяжеться 🙌")
+    await send_reply(update, "Наш менеджер скоро з вами звʼяжеться 🙌")
 
 # --- КАСТОМНА САУНА ----------------------------------------------------------
 async def start_custom_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -67,18 +85,18 @@ async def start_custom_request(update: Update, context: ContextTypes.DEFAULT_TYP
             "Send */cancel* to abort."
         )
     }
-    await update.message.reply_text(prompts.get(lang, prompts["ua"]), parse_mode="Markdown")
+    await send_reply(update, prompts.get(lang, prompts["ua"]), parse_mode="Markdown")
 
 async def handle_custom_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обробляємо введений текст у режимі кастомної сауни та пересилаємо менеджеру."""
-    text = update.message.text.strip()
+    text = (update.message.text or "").strip()
 
     # скасування
     if text in CANCEL_WORDS:
         context.user_data.pop("awaiting_custom", None)
         lang = context.user_data.get("lang", "ua")
         msg = {"ua": "Скасовано ✅", "en": "Cancelled ✅"}.get(lang, "Скасовано ✅")
-        await update.message.reply_text(msg)
+        await send_reply(update, msg)
         return
 
     # надсилаємо менеджеру
@@ -90,7 +108,7 @@ async def handle_custom_message(update: Update, context: ContextTypes.DEFAULT_TY
         "ua": "Дякуємо! Ваше повідомлення надіслано менеджеру. Ми відповімо якнайшвидше 🙌",
         "en": "Thanks! Your message has been sent to the manager. We'll get back to you soon 🙌",
     }.get(lang, "Дякуємо! Ваше повідомлення надіслано менеджеру. Ми відповімо якнайшвидше 🙌")
-    await update.message.reply_text(ok)
+    await send_reply(update, ok)
 
     # очищаємо стан
     context.user_data.pop("awaiting_custom", None)
@@ -110,6 +128,11 @@ async def send_catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
             filename="LakeGlow_Sauna_Catalog.pdf",
             caption=caption
         )
+
+# --- службові команди ---------------------------------------------------------
+async def unpin_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
+    await send_reply(update, "Прикріплені повідомлення знято ✅")
 
 # --- головний хендлер тексту -------------------------------------------------
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -131,15 +154,15 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Якщо мову ще не вибрано
     if not lang:
-        await update.message.reply_text("Будь ласка, оберіть мову / Please choose a language.")
+        await send_reply(update, "Будь ласка, оберіть мову / Please choose a language.")
         return
 
     # Показати головне меню після вибору мови
     if text in ["🇺🇦 Українська", "🇬🇧 English"]:
         raw_menu = MESSAGES[lang]["menu"]
-        # додамо кнопку скасування під час набору кастом-запиту
         menu = group_menu(raw_menu, n=2)
-        await update.message.reply_text(
+        await send_reply(
+            update,
             MESSAGES[lang]["main"],
             reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True)
         )
@@ -167,7 +190,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "— Панорамне гартоване скло 6 мм"
             ),
             "🛠 Додаткові опції": "Дивіться всі доступні опції за посиланням:\nhttps://urist-github.github.io/sauna-price/",
-            "✍️ Кастомна sauna": start_custom_request,  # <-- ТЕПЕР запускає режим збору повідомлення
+            "✍️ Кастомна sauna": start_custom_request,
             "📞 Зв’язатися з менеджером": handle_contact_request,
             "🌍 Змінити мову": start
         },
@@ -191,7 +214,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "— Tempered glass panel (6 mm)"
             ),
             "🛠 Extra features": "See all available features here:\nhttps://urist-github.github.io/sauna-price/",
-            "✍️ Custom sauna": start_custom_request,  # <-- ТЕПЕР запускає режим збору повідомлення
+            "✍️ Custom sauna": start_custom_request,
             "📞 Contact a manager": handle_contact_request,
             "🌍 Change language": start
         }
@@ -202,15 +225,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if callable(reply):
         await reply(update, context)
     elif isinstance(reply, str):
-        await update.message.reply_text(reply, parse_mode="Markdown")
+        await send_reply(update, reply, parse_mode="Markdown")
     else:
-        await update.message.reply_text("Виберіть дію з меню 👇")
+        await send_reply(update, "Виберіть дію з меню 👇")
 
 # --- main --------------------------------------------------------------------
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cancel", handle_custom_message))  # щоб /cancel спрацьовував будь-коли
+    app.add_handler(CommandHandler("unpin", unpin_all))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     print("Bot started...")
     app.run_polling()
