@@ -18,8 +18,7 @@ def group_menu(items, n=2):
     return [list(filter(None, group)) for group in zip_longest(*args)]
 
 # --- спільні утиліти ---------------------------------------------------------
-async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE, extra_text: str = ""):
-    """Шле службове повідомлення менеджеру про користувача + довільний текст запиту."""
+async def notify_manager((update: Update, context: ContextTypes.DEFAULT_TYPE, extra_text: str = ""):
     user = update.effective_user
     base = (
         f"📬 Новий запит від користувача\n"
@@ -29,16 +28,21 @@ async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE, ext
     )
     if extra_text:
         base += f"\n📝 Повідомлення:\n{extra_text}"
-    await context.bot.send_message(chat_id=MANAGER_CHAT_ID, text=base)
 
-# --- старт/меню --------------------------------------------------------------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # скидаємо можливі незавершені стани
-    context.user_data.pop("awaiting_custom", None)
+    # Якщо є username → можна клікнути
+    if user.username:
+        contact_link = f"https://t.me/{user.username}"
+    else:
+        # якщо нема username → deep link по ID (відкриється чат у клієнта Telegram)
+        contact_link = f"tg://user?id={user.id}"
 
-    await update.message.reply_text(
-        MESSAGES["ua"]["start"],
-        reply_markup=ReplyKeyboardMarkup(LANGUAGE_KEYBOARD, resize_keyboard=True)
+    base += f"\n\n👉 [Відкрити чат з користувачем]({contact_link})"
+
+    await context.bot.send_message(
+        chat_id=MANAGER_CHAT_ID,
+        text=base,
+        parse_mode="Markdown",
+        disable_web_page_preview=True
     )
 
 async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
