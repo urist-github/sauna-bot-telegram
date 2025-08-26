@@ -12,21 +12,20 @@ from telegram.ext import (
     ContextTypes, filters
 )
 from dotenv import load_dotenv
-
 from messages import MESSAGES
 
-# -------- ENV --------
+# -------------------- ENV --------------------
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 MANAGER_CHAT_ID = int(os.getenv("MANAGER_CHAT_ID"))
 MANAGER_USERNAME = os.getenv("MANAGER_USERNAME", "").strip()  # optional
 
-# -------- CONSTANTS --------
+# -------------------- CONST ------------------
 LANGUAGE_KEYBOARD = [["🇺🇦 Українська", "🇬🇧 English"]]
 CANCEL_WORDS = {"/cancel", "Скасувати", "Cancel", "❌ Скасувати", "❌ Cancel"}
 DEFAULT_REPLY_KW = dict(disable_web_page_preview=True)
 
-# -------- HELPERS --------
+# -------------------- UTILS ------------------
 def group_menu(items, n=2):
     args = [iter(items)] * n
     return [list(filter(None, g)) for g in zip_longest(*args)]
@@ -41,29 +40,35 @@ async def send_reply(update: Update, text: str, **kw):
     kw = {**DEFAULT_REPLY_KW, **kw}
     return await update.message.reply_text(text, **kw)
 
-# -------- MANAGER NOTIFY --------
+# ---------------- MANAGER NOTIFY -------------
 async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE, extra_text: str = ""):
+    """
+    Надсилає в менеджерський чат службове повідомлення у ТВОЄМУ старому форматі
+    (текст і структура — 1в1), з клікабельним посиланням на користувача.
+    Використовує HTML, щоб не ламався username з підкресленням.
+    """
     user = update.effective_user
     full_name = html.escape(user.full_name or "")
-    username = user.username or "—"
+    username_display = f"@{user.username}" if user.username else "—"
+    username_display = html.escape(username_display)
     user_id = user.id
 
+    # Лінк для контакту з користувачем
     if user.username:
         contact_link = f"https://t.me/{user.username}"
-        contact_caption = "Відкрити чат з користувачем"
     else:
         contact_link = f"tg://user?id={user.id}"
-        contact_caption = "Відкрити чат (по ID)"
 
+    # Той самий текст, що був у тебе (з HTML-розміткою для надійності)
     body = (
-        f"📬 Новий запит від користувача<br>"
+        "📬 Новий запит від користувача<br>"
         f"• Name: {full_name}<br>"
-        f"• Username: <code>@{html.escape(username)}</code><br>"
+        f"• Username: <code>{username_display}</code><br>"
         f"• User ID: <code>{user_id}</code>"
     )
     if extra_text:
         body += f"<br><br>📝 Повідомлення:<br>{html.escape(extra_text)}"
-    body += f'<br><br>👉 <a href="{html.escape(contact_link)}">{contact_caption}</a>'
+    body += f'<br><br>👉 <a href="{html.escape(contact_link)}">Відкрити чат з користувачем</a>'
 
     try:
         await context.bot.send_message(
@@ -73,10 +78,10 @@ async def notify_manager(update: Update, context: ContextTypes.DEFAULT_TYPE, ext
             disable_web_page_preview=True
         )
     except Exception as e:
-        # лог, щоб не валити хендлер
+        # Лише лог, щоб не зламати відповідь користувачу
         print("notify_manager error:", repr(e))
 
-# -------- START / MENU --------
+# ---------------- START / MENU ---------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.pop("awaiting_custom", None)
     await send_reply(
@@ -85,10 +90,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=ReplyKeyboardMarkup(LANGUAGE_KEYBOARD, resize_keyboard=True)
     )
 
+# ГОЛОВНА кнопка "Зв’язатися з менеджером"
 async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 1) Сповіщення менеджеру у старому форматі
     await notify_manager(update, context, extra_text="🔔 Кнопка: Зв’язатися з менеджером")
 
-    # кнопки для прямого контакту
+    # 2) Користувачу — підтвердження і кнопки для прямого звʼязку
     buttons = []
     if MANAGER_USERNAME:
         buttons.append([InlineKeyboardButton("✉️ Написати менеджеру", url=f"https://t.me/{MANAGER_USERNAME}")])
@@ -100,7 +107,7 @@ async def handle_contact_request(update: Update, context: ContextTypes.DEFAULT_T
         disable_web_page_preview=True
     )
 
-# -------- CUSTOM SAUNA FLOW --------
+# ------------- CUSTOM SAUNA FLOW ------------
 async def start_custom_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = context.user_data.get("lang", "ua")
     context.user_data["awaiting_custom"] = True
@@ -120,6 +127,8 @@ async def start_custom_request(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def handle_custom_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (update.message.text or "").strip()
+
+    # Скасування
     if norm(text) in {norm(x) for x in CANCEL_WORDS}:
         context.user_data.pop("awaiting_custom", None)
         lang = context.user_data.get("lang", "ua")
@@ -127,43 +136,51 @@ async def handle_custom_message(update: Update, context: ContextTypes.DEFAULT_TY
         await send_reply(update, msg)
         return
 
+    # Нотіфікація менеджеру у старому форматі
     await notify_manager(update, context, extra_text=f"🧩 Кастомна сауна — заявка користувача:\n{text}")
+
+    # Підтвердження користувачу
     lang = context.user_data.get("lang", "ua")
     ok = {
         "ua": "Дякуємо! Ваше повідомлення надіслано менеджеру. Ми відповімо якнайшвидше 🙌",
         "en": "Thanks! Your message has been sent to the manager. We'll get back to you soon 🙌",
     }.get(lang, "Дякуємо! Ваше повідомлення надіслано менеджеру. Ми відповімо якнайшвидше 🙌")
     await send_reply(update, ok)
+
+    # Вихід з режиму
     context.user_data.pop("awaiting_custom", None)
 
-# -------- CATALOG --------
+# ---------------- CATALOG -------------------
 async def send_catalog(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = context.user_data.get("lang", "ua")
     caption = {
         "ua": "Ось наш актуальний каталог PDF файлом 📄",
         "en": "Here is our latest sauna catalog as a PDF 📄"
     }.get(lang, "Catalog 📄")
-    with open("LakeGlow_Sauna_Catalog.pdf", "rb") as pdf_file:
+    # Назва файла може відрізнятися — змінюй за потреби
+    filename = "LakeGlow_Sauna_Catalog.pdf"
+    with open(filename, "rb") as pdf_file:
         await context.bot.send_document(
             chat_id=update.effective_chat.id,
             document=pdf_file,
-            filename="LakeGlow_Sauna_Catalog.pdf",
+            filename=filename,
             caption=caption
         )
 
-# -------- ADMIN --------
+# --------------- ADMIN ----------------------
 async def unpin_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.unpin_all_chat_messages(chat_id=update.effective_chat.id)
     await send_reply(update, "Прикріплені повідомлення знято ✅")
 
-# -------- MAIN TEXT HANDLER --------
+# ------------- MAIN TEXT HANDLER ------------
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raw = update.message.text
     txt = norm(raw)
     lang = context.user_data.get("lang")
 
-    # активний режим кастому
+    # Якщо активний кастом-режим — перехоплюємо
     if context.user_data.get("awaiting_custom"):
+        # дозволимо з режиму одразу піти до менеджера
         if "зв'язатися з менеджером" in txt or "contact a manager" in txt or "contact manager" in txt:
             context.user_data.pop("awaiting_custom", None)
             await handle_contact_request(update, context)
@@ -171,7 +188,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_custom_message(update, context)
         return
 
-    # вибір мови
+    # Вибір мови
     if txt in (norm("🇺🇦 Українська"), norm("Українська")):
         context.user_data["lang"] = "ua"; lang = "ua"
     elif txt in (norm("🇬🇧 English"), norm("English")):
@@ -181,7 +198,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_reply(update, "Будь ласка, оберіть мову / Please choose a language.")
         return
 
-    # показати меню після вибору мови
+    # Показати меню після вибору мови
     if txt in (norm("🇺🇦 Українська"), norm("Українська"), norm("🇬🇧 English"), norm("English")):
         raw_menu = MESSAGES[lang]["menu"]
         menu = group_menu(raw_menu, n=2)
@@ -192,7 +209,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # надійний роутинг без точного збігу
+    # Надійний роутинг без точного збігу
     if "зв'язатися з менеджером" in txt or "contact a manager" in txt or "contact manager" in txt:
         await handle_contact_request(update, context)
         return
@@ -201,18 +218,26 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await start_custom_request(update, context)
         return
 
-    # стандартні відповіді (залишаємо як резерв з точним збігом)
+    # Резерв: точні збіги (як у твоїй старій схемі)
     responses = {
         "ua": {
             "📦 Каталог саун": send_catalog,
             "🪵 Матеріали": (
                 "🪵 *Матеріали, які ми використовуємо у наших сауна-бані:*\n\n"
                 "Каркас з сосни 50×100 мм, утеплення — 10 см мінеральної вати.\n\n"
-                "🔹 *Зовні:*\n— 2 стіни: металевий клік-фальц\n— 2 стіни: дерев’яний планкен або гонт\n\n"
+                "🔹 *Зовні:*\n"
+                "— 2 стіни: металевий клік-фальц\n"
+                "— 2 стіни: дерев’яний планкен або гонт\n\n"
                 "🔹 *Пиріг стіни (зовні → всередину):*\n"
-                "1. Металевий клік-фальц або дерев’яний фасад\n2. Монтажна рейка\n3. Вітрозахисна мембрана\n"
-                "4. Мінеральна вата 100 мм\n5. Фольгований паробар’єр\n6. Вагонка з вільхи\n\n"
-                "🔹 *Всередині парної:*\n— Лежаки з вільхи\n— Панорамне гартоване скло 6 мм"
+                "1. Металевий клік-фальц або дерев’яний фасад\n"
+                "2. Монтажна дерев’яна рейка\n"
+                "3. Вітрозахисна мембрана\n"
+                "4. Мінеральна вата 100 мм\n"
+                "5. Фольгований паробар’єр\n"
+                "6. Вагонка з вільхи\n\n"
+                "🔹 *Всередині парної:*\n"
+                "— Лежаки з вільхи\n"
+                "— Панорамне гартоване скло 6 мм"
             ),
             "🛠 Додаткові опції": "Дивіться всі доступні опції за посиланням:\nhttps://urist-github.github.io/sauna-price/",
             "✍️ Кастомна sauna": start_custom_request,
@@ -223,12 +248,20 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📦 Sauna catalog": send_catalog,
             "🪵 Materials": (
                 "🪵 *Materials we use in our outdoor sauna cabins:*\n\n"
-                "Frame: pine 50×100 mm, insulation — 100 mm mineral wool.\n\n"
-                "🔹 *Exterior:*\n— 2 walls: metal click-lock\n— 2 walls: wooden cladding/shingles\n\n"
-                "🔹 *Wall build-up (outside → inside):*\n"
-                "1. Metal click-lock or wooden facade\n2. Battens\n3. Windproof membrane\n"
-                "4. 100 mm mineral wool\n5. Foil vapor barrier\n6. Alder paneling\n\n"
-                "🔹 *Steam room:*\n— Alder benches\n— Tempered glass 6 mm"
+                "The frame is made of pine 50×100 mm with 100 mm mineral wool insulation.\n\n"
+                "🔹 *Exterior cladding:*\n"
+                "— 2 walls: metal click-lock panels\n"
+                "— 2 walls: natural wood planks or shingles\n\n"
+                "🔹 *Wall structure (outside → inside):*\n"
+                "1. Metal click-lock or wooden facade\n"
+                "2. Wooden battens\n"
+                "3. Windproof membrane\n"
+                "4. 100 mm mineral wool\n"
+                "5. Foil vapor barrier\n"
+                "6. Alder paneling\n\n"
+                "🔹 *Inside the steam room:*\n"
+                "— Alder benches\n"
+                "— Tempered glass panel (6 mm)"
             ),
             "🛠 Extra features": "See all available features here:\nhttps://urist-github.github.io/sauna-price/",
             "✍️ Custom sauna": start_custom_request,
@@ -245,11 +278,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await send_reply(update, "Виберіть дію з меню 👇")
 
-# -------- MAIN --------
+# -------------------- MAIN -------------------
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("cancel", handle_custom_message))
+    app.add_handler(CommandHandler("cancel", handle_custom_message))  # щоб /cancel спрацьовував будь-коли
     app.add_handler(CommandHandler("unpin", unpin_all))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     print("Bot started...")
